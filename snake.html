@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snake Game</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f0f0f0;
+        }
+        #game-board {
+            width: 400px;
+            height: 400px;
+            border: 2px solid #000;
+            position: relative;
+            background-color: #fff;
+        }
+        .snake-segment, .food {
+            width: 20px;
+            height: 20px;
+            position: absolute;
+            border-radius: 2px;
+        }
+        .snake-segment {
+            background-color: #4CAF50;
+        }
+        .food {
+            background-color: #F44336;
+        }
+        .button {
+            margin: 10px;
+            padding: 10px 20px;
+            font-size: 16px;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #start-button {
+            background-color: #2196F3;
+        }
+        #score-container {
+            display: flex;
+            justify-content: space-between;
+            width: 400px;
+            margin: 10px 0;
+        }
+        #score, #high-score {
+            font-size: 24px;
+        }
+        #high-score {
+            font-size: 18px;
+            color: #888;
+        }
+        .difficulty-button {
+            margin: 5px;
+            padding: 8px 15px;
+            font-size: 14px;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #easy-button { background-color: #4CAF50; }
+        #medium-button { background-color: #1E90FF; }
+        #hard-button { background-color: #F44336; }
+        .active { opacity: 1; }
+        .inactive { opacity: 0.6; }
+
+        #game-over-modal {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            z-index: 1000;
+            width: 200px;
+        }
+        #game-over-modal h2 {
+            margin-top: 0;
+        }
+        #game-over-modal button {
+            margin: 10px 5px;
+            padding: 5px 10px;
+            font-size: 16px;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #restart-button {
+            background-color: #4CAF50;
+        }
+        #cancel-button {
+            background-color: #F44336;
+        }
+        #new-high-score {
+            color: #FFD700;
+            font-weight: bold;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Snake Game</h1>
+    <div id="score-container">
+        <div id="score">Score: 0</div>
+        <div id="high-score">High Score: 0</div>
+    </div>
+    <div id="game-board">
+        <div id="game-over-modal">
+            <h2>Game Over!</h2>
+            <p id="final-score"></p>
+            <p id="new-high-score">New High Score!</p>
+            <button id="restart-button">Restart</button>
+            <button id="cancel-button">Cancel</button>
+        </div>
+    </div>
+    <div id="difficulty-buttons">
+        <button id="easy-button" class="button difficulty-button inactive">Easy</button>
+        <button id="medium-button" class="button difficulty-button active">Medium</button>
+        <button id="hard-button" class="button difficulty-button inactive">Hard</button>
+    </div>
+    <button id="start-button" class="button">Start Game</button>
+
+    <audio id="gameOverSound" src="snake_failed.wav"></audio>
+    <audio id="backgroundMusic" src="snake_background.wav" loop></audio>
+
+    <script>
+        const gameBoard = document.getElementById('game-board');
+        const startButton = document.getElementById('start-button');
+        const scoreElement = document.getElementById('score');
+        const highScoreElement = document.getElementById('high-score');
+        const gameOverSound = document.getElementById('gameOverSound');
+        const backgroundMusic = document.getElementById('backgroundMusic');
+
+        let snake = [];
+        let food = {};
+        let direction = 'right';
+        let headingDirection = 'right';
+        let score = 0;
+        let highScore = 0;
+        let gameLoop;
+        let speed = 200;
+        let isPaused = false;
+        let isGameOver = true;
+
+        function createSegment(x, y, isFood = false) {
+            const segment = document.createElement('div');
+            segment.className = isFood ? 'food' : 'snake-segment';
+            segment.style.left = `${x * 20}px`;
+            segment.style.top = `${y * 20}px`;
+            gameBoard.appendChild(segment);
+            return segment;
+        }
+
+        function updateBoard() {
+            const modal = document.getElementById('game-over-modal');
+            gameBoard.innerHTML = '';
+            snake.forEach(segment => createSegment(segment.x, segment.y));
+            createSegment(food.x, food.y, true);
+            gameBoard.appendChild(modal);
+        }
+
+        function moveSnake() {
+            const head = {...snake[0]};
+
+            switch(direction) {
+                case 'up': head.y--; break;
+                case 'down': head.y++; break;
+                case 'left': head.x--; break;
+                case 'right': head.x++; break;
+            }
+
+            if (head.x < 0 || head.x >= 20 || head.y < 0 || head.y >= 20 || snake.some(segment => segment.x === head.x && segment.y === head.y)) {
+                if (head.x < 0 || head.x >= 20 || head.y < 0 || head.y >= 20) {
+                    console.error("Move Failed xy error,direction="+direction+" headx ="+head.x+" heady ="+head.y)
+                } else if (snake.some(segment => segment.x === head.x && segment.y === head.y)) {
+                    console.error("Move Failed body error,direction="+direction+" headx = , heady = "+head.x, head.y + " snake =",  snake)
+                }
+                gameOver();
+                return;
+            }
+
+            snake.unshift(head);
+            headingDirection = direction;
+
+            if (head.x === food.x && head.y === food.y) {
+                score++;
+                scoreElement.textContent = `Score: ${score}`;
+                generateFood();
+            } else {
+                snake.pop();
+            }
+
+            updateBoard();
+        }
+
+        function generateFood() {
+            do {
+                food = {
+                    x: Math.floor(Math.random() * 20),
+                    y: Math.floor(Math.random() * 20)
+                };
+            } while (snake.some(segment => segment.x === food.x && segment.y === food.y));
+        }
+
+        function startGame() {
+            if (gameLoop) clearInterval(gameLoop);
+            gameLoop = setInterval(() => {
+                if (!isPaused && !isGameOver) {
+                    moveSnake();
+                }
+            }, speed);
+        }
+
+        function gameOver() {
+            isGameOver = true;
+            clearInterval(gameLoop);
+            stopBackgroundMusic();
+
+            gameOverSound.play();
+            startButton.textContent = 'Start Game';
+            showGameOverModal();
+            food = {};
+
+            // 更新最高分
+            if (score > highScore) {
+                highScore = score;
+                highScoreElement.textContent = `High Score: ${highScore}`;
+                document.getElementById('new-high-score').style.display = 'block';
+            } else {
+                document.getElementById('new-high-score').style.display = 'none';
+            }
+        }
+
+        function initializeSnake() {
+            snake = [{x: 10, y: 10}];
+            direction = 'right';
+        }
+
+        function showGameOverModal() {
+            const modal = document.getElementById('game-over-modal');
+            const finalScore = document.getElementById('final-score');
+            finalScore.textContent = `Your score: ${score}`;
+            modal.style.display = 'block';
+        }
+
+        function hideGameOverModal() {
+            document.getElementById('game-over-modal').style.display = 'none';
+        }
+
+        function startNewGame() {
+            score = 0;
+            scoreElement.textContent = 'Score: 0';
+            isGameOver = false;
+            isPaused = false;
+            startButton.textContent = 'Pause';
+            initializeSnake();
+            
+            if (food?.x == null || food?.y == null) {
+                // food 没有值，初始化
+                generateFood();
+            }
+
+            updateBoard();
+            startGame();
+            playBackgroundMusic();
+            hideGameOverModal();
+        }
+
+        function setDifficulty(level) {
+            document.querySelectorAll('.difficulty-button').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.difficulty-button').forEach(btn => btn.classList.add('inactive'));
+            document.getElementById(`${level}-button`).classList.remove('inactive');
+            document.getElementById(`${level}-button`).classList.add('active');
+
+            switch(level) {
+                case 'easy': speed = 200; break;
+                case 'medium': speed = 150; break;
+                case 'hard': speed = 80; break;
+            }
+
+            if (!isGameOver) {
+                startGame();
+            }
+        }
+
+        function playBackgroundMusicLoop(startTime, endTime) {
+            // 确保开始时间小于结束时间
+            if (startTime >= endTime) {
+                console.error("Start time must be less than end time");
+                return;
+            }
+
+            // 设置音乐开始播放的时间
+            backgroundMusic.currentTime = startTime;
+
+            // 开始播放
+            backgroundMusic.play().catch(e => console.error("Failed to play background music:", e));
+
+            // 添加timeupdate事件监听器
+            backgroundMusic.addEventListener('timeupdate', function() {
+                // 如果当前播放时间超过了指定的结束时间
+                if (this.currentTime >= endTime) {
+                    // 将播放时间重置到开始时间
+                    this.currentTime = startTime;
+                }
+            });
+
+            // 设置loop属性为true，确保音乐不会在文件末尾停止
+            backgroundMusic.loop = true;
+        }
+
+        function playBackgroundMusic() {
+            playBackgroundMusicLoop(0, 93);
+        }
+
+        function stopBackgroundMusic() {
+            backgroundMusic.pause();
+            backgroundMusic.currentTime = 0;
+        }
+
+        document.getElementById('easy-button').addEventListener('click', () => setDifficulty('easy'));
+        document.getElementById('medium-button').addEventListener('click', () => setDifficulty('medium'));
+        document.getElementById('hard-button').addEventListener('click', () => setDifficulty('hard'));
+
+        startButton.addEventListener('click', () => {
+            if (isGameOver) {
+                startNewGame();
+            } else {
+                isPaused = !isPaused;
+                startButton.textContent = isPaused ? 'Resume' : 'Pause';
+                if (isPaused) {
+                    backgroundMusic.pause();
+                } else {
+                    backgroundMusic.play();
+                }
+            }
+        });
+
+        function oppositionDirection() {
+            switch(headingDirection) {
+                case 'down': return 'up';
+                case 'up': return 'down';
+                case 'right': return 'left';
+                case 'left': return 'right';
+                default: return ''; // 处理未知方向
+            }
+        }
+
+        document.addEventListener('keydown', (event) => {
+            if (!isGameOver && !isPaused) {
+                let tmpDirection;
+                switch(event.key) {
+                    case 'w':
+                    case 'W':
+                    case 'ArrowUp': 
+                        if (direction !== 'down') tmpDirection = 'up'; 
+                        break;
+                    case 's':
+                    case 'S':
+                    case 'ArrowDown':
+                         if (direction !== 'up') tmpDirection = 'down'; 
+                         break;
+                    case 'a':
+                    case 'A':
+                    case 'ArrowLeft':
+                         if (direction !== 'right') tmpDirection = 'left'; 
+                         break;
+                    case 'd':
+                    case 'D':
+                    case 'ArrowRight': 
+                         if (direction !== 'left') tmpDirection = 'right';
+                         break;
+                     default:
+                        return;
+                }
+
+                let oppositeDir = oppositionDirection();
+                if (tmpDirection !== undefined && oppositeDir !== null && tmpDirection !== oppositeDir) {
+                    direction = tmpDirection;
+                    console.log("eventListener right, last="+direction+" next="+tmpDirection+" opposite="+oppositeDir+ " heading="+headingDirection);
+                }
+            }
+        });
+
+        document.getElementById('restart-button').addEventListener('click', () => {
+            startNewGame();
+        });
+
+        document.getElementById('cancel-button').addEventListener('click', () => {
+            hideGameOverModal();
+        });
+
+        // 设置默认难度为中等
+        setDifficulty('medium');
+
+        // 初始化游戏状态并显示
+        initializeSnake();
+        generateFood();
+        updateBoard();
+    </script>
+</body>
+</html>
