@@ -11,6 +11,7 @@
             flex-direction: column;
             align-items: center;
             background-color: #f0f0f0;
+            overflow: hidden; /* Prevent scrolling on mobile */
         }
         #game-board {
             width: 400px;
@@ -46,7 +47,7 @@
         #score-container {
             display: flex;
             justify-content: space-between;
-            width: 400px;
+            width: 380px;
             margin: 10px 0;
         }
         #score, #high-score {
@@ -409,6 +410,55 @@
         initializeSnake();
         generateFood();
         updateBoard();
+
+        // Mobile-specific touch controls
+        let touchStartX = 0;
+        let touchStartY = 0;
+
+        document.addEventListener('touchstart', function(event) {
+            if (event.touches.length === 1) {
+                touchStartX = event.touches[0].clientX;
+                touchStartY = event.touches[0].clientY;
+            }
+        }, false);
+
+        document.addEventListener('touchmove', function(event) {
+            if (event.touches.length === 1) {
+
+                let tmpDirection;
+                let touchEndX = event.touches[0].clientX;
+                let touchEndY = event.touches[0].clientY;
+                let dX = touchEndX - touchStartX;
+                let dY = touchEndY - touchStartY;
+
+                if (Math.abs(dX) > Math.abs(dY)) {
+                    if (dX > 0 && direction !== 'left') {
+                        tmpDirection = 'right';
+                    } else if (dX < 0 && direction !== 'right') {
+                        tmpDirection = 'left';
+                    }
+                } else {
+                    if (dY > 0 && direction !== 'up') {
+                        tmpDirection = 'down';
+                    } else if (dY < 0 && direction !== 'down') {
+                        tmpDirection = 'up';
+                    }
+                }
+
+                touchStartX = touchEndX;
+                touchStartY = touchEndY;
+                console.log("eventTouch - event");
+
+                if (!isGameOver && !isPaused) {
+                    let oppositeDir = oppositionDirection();
+                    if (tmpDirection !== undefined && oppositeDir !== null && tmpDirection !== oppositeDir) {
+                        console.log("eventTouch - change direction");
+                        direction = tmpDirection;
+                        console.log("eventTouch right, last="+direction+" next="+tmpDirection+" opposite="+oppositeDir+ " heading="+headingDirection);
+                    }
+                }
+            }
+        }, false);
     </script>
 </body>
 </html>
