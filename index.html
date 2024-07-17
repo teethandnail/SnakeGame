@@ -14,15 +14,15 @@
             overflow: hidden; /* Prevent scrolling on mobile */
         }
         #game-board {
-            width: 400px;
-            height: 400px;
+            width: 380px;
+            height: 380px;
             border: 2px solid #000;
             position: relative;
             background-color: #fff;
         }
         .snake-segment, .food {
-            width: 20px;
-            height: 20px;
+            width: 19px;
+            height: 19px;
             position: absolute;
             border-radius: 2px;
         }
@@ -47,7 +47,7 @@
         #score-container {
             display: flex;
             justify-content: space-between;
-            width: 380px;
+            width: 370px;
             margin: 10px 0;
         }
         #score, #high-score {
@@ -143,6 +143,8 @@
         const highScoreElement = document.getElementById('high-score');
         const gameOverSound = document.getElementById('gameOverSound');
         const backgroundMusic = document.getElementById('backgroundMusic');
+        const GRID_SIZE = 19;
+        const GRID_NUM = 20;
 
         let snake = [];
         let food = {};
@@ -158,8 +160,8 @@
         function createSegment(x, y, isFood = false) {
             const segment = document.createElement('div');
             segment.className = isFood ? 'food' : 'snake-segment';
-            segment.style.left = `${x * 20}px`;
-            segment.style.top = `${y * 20}px`;
+            segment.style.left = `${x * GRID_SIZE}px`;
+            segment.style.top = `${y * GRID_SIZE}px`;
             gameBoard.appendChild(segment);
             return segment;
         }
@@ -182,8 +184,8 @@
                 case 'right': head.x++; break;
             }
 
-            if (head.x < 0 || head.x >= 20 || head.y < 0 || head.y >= 20 || snake.some(segment => segment.x === head.x && segment.y === head.y)) {
-                if (head.x < 0 || head.x >= 20 || head.y < 0 || head.y >= 20) {
+            if (head.x < 0 || head.x >= GRID_NUM || head.y < 0 || head.y >= GRID_NUM || snake.some(segment => segment.x === head.x && segment.y === head.y)) {
+                if (head.x < 0 || head.x >= GRID_NUM || head.y < 0 || head.y >= GRID_NUM) {
                     console.error("Move Failed xy error,direction="+direction+" headx ="+head.x+" heady ="+head.y)
                 } else if (snake.some(segment => segment.x === head.x && segment.y === head.y)) {
                     console.error("Move Failed body error,direction="+direction+" headx = , heady = "+head.x, head.y + " snake =",  snake)
@@ -209,8 +211,8 @@
         function generateFood() {
             do {
                 food = {
-                    x: Math.floor(Math.random() * 20),
-                    y: Math.floor(Math.random() * 20)
+                    x: Math.floor(Math.random() * GRID_SIZE),
+                    y: Math.floor(Math.random() * GRID_SIZE)
                 };
             } while (snake.some(segment => segment.x === food.x && segment.y === food.y));
         }
